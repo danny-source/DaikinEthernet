@@ -2,18 +2,22 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <IRdaikin.h>
-
+#include <DHT.h>
 
 //feature define
 #define DAIKIN_AC
-//#define SENSOR_TEMPERATURE
-//#define SENSOR_HUMIDITY
+#define SENSOR_TEMPERATURE
+#define SENSOR_HUMIDITY
+
+#define DHTTYPE DHT11
+#define DHTPIN 2     // what pin we're connected to
+DHT dht(DHTPIN, DHTTYPE);
 
 //Ethernet Declare
 byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
 };
-IPAddress ip(192, 168, 9, 59);
+IPAddress ip(192, 168, 13, 59);
 
 // Initialize the Ethernet server library
 // with the IP address and port you want to use
@@ -25,8 +29,10 @@ EthernetClient client;
 String requestStringBuffer;
 long requestPackageLength;
 bool isCommand;
+bool isSerialCommand;
 uint8_t commandMethod;//1:POST 2:GET
 String commandAction;
+String commandHttpAction;
 boolean currentLineIsBlank = true;
 
 //Schdule Timer
@@ -50,8 +56,11 @@ int daikinCommandTemp[6] = {0,0,0,0,0,0};
 #define NUMBER_OF_DAIKIN 1
 IRdaikin irdaikin;
 //sensor
-int sensorTemperature[1] = {25};
-int sensorHumidity[1] = {60};
+#define NUMBER_OF_TEMPERATURE 1
+#define NUMBER_OF_HUMIDITY 1
+
+int sensorTemperature[] = {0};
+int sensorHumidity[] = {99};
 
 void setup() {
   // Open serial communications and wait for port to open:
@@ -67,6 +76,7 @@ void setup() {
   commandMethod = 0;
   commandAction = "";
   startTime = 0;
+  dht.begin();
 }
 
 
@@ -88,7 +98,7 @@ void loop() {
     if (timerCounter >= 60) {
       timerCounter = 0;
     }    
-  } 
+  }
   //check http
   client = server.available();
   if (client) {
@@ -98,9 +108,10 @@ void loop() {
       while (client.connected()) {
             if (client.available()) {
               if (parseHTTP_Method_Action()) {
-                progressHTTP_Action();
-                break;
-            }
+                  
+                  progressHTTP_Action();
+                  break;
+              }
             }
       }
   }else {
@@ -125,8 +136,9 @@ bool parseHTTP_Method_Action(){
         }
         //check method and action end of line.
         if (requestStringBuffer.endsWith(F(" HTTP/"))  && (isCommand)) {
-          isCommand = false;
+          isCommand = false;          
           commandAction = requestStringBuffer.substring(0,requestStringBuffer.length() - 6);
+          
         } 
         //request end of lin  
          if (c == '\n' && currentLineIsBlank) {
@@ -159,11 +171,11 @@ void progressHTTP_Action(){
               //check command number,if no matched ,send error
               commandCnt = commandCnt + 1;
               if (commandCnt > (NUMBER_OF_COMMAND - 1)) {
-                sendHTTPJSONERROR();
+                sendHTTPJSONCMD_ERROR();
                 break;
               }
             }            
-            Serial.println("progress end");
+            //Serial.println("progress end");
             commandAction = "";
            }else {
              sendHTTPJSONERROR();
@@ -205,28 +217,32 @@ void getFeature() {
    }  
     HTTP_JSON_Header();
     client.print(F("{\"status\":\"ok\""));
-    
+    client.print(F(","));
+    client.print(F("\"version\":\""));
+    client.print(F("1"));
+    client.print(F("\""));
+    //
     client.print(F(","));   
     client.print(F("\"ac\":\""));
 #ifdef DAIKIN_AC    
-    client.print("1");
+    client.print(F("1"));
 #else
-    client.print("0");
+    client.print(F("0"));
 #endif
     client.print(F(","));
     client.print(F("\"humidity\":\""));
 #ifdef SENSOR_HUMIDITY    
-    client.print("1");
+    client.print(F("1"));
 #else
-    client.print("0");
+    client.print(F("0"));
 #endif
     client.print(F("\""));
     client.print(F(","));
     client.print(F("\"temperature\":\""));
 #ifdef SENSOR_TEMPERATURE    
-    client.print("1");
+    client.print(F("1"));
 #else
-    client.print("0");
+    client.print(F("0"));
 #endif
     client.print(F("\""));
     client.println(F("}"));        
@@ -401,7 +417,7 @@ void getTemperature() {
    return;
    }   
    int acNumber = getNumberOfAC(idx);
-   if (acNumber == -1) {
+   if ((acNumber == -1) || (acNumber>=NUMBER_OF_TEMPERATURE)) {
    sendHTTPJSONCMD_ERROR();
    return;
    }  
@@ -428,7 +444,7 @@ void getHumidity() {
    return;
    }   
    int acNumber = getNumberOfAC(idx);
-   if (acNumber == -1) {
+   if ((acNumber == -1) || (acNumber>=NUMBER_OF_HUMIDITY)) {
    sendHTTPJSONCMD_ERROR();
    return;
    }   
@@ -450,6 +466,7 @@ void schdule1Second() {
 }
 void schdule2Second() {
   //Serial.println("schdule2Second");
+    readDHT(0);
 }
 // HTTP Response
 
@@ -491,5 +508,23 @@ void sendHTTPJSONCMD_ERROR() {
           client.println(F("{\"status\":\"command error\"}"));
           client.flush();
           client.stop();   
+}
+//
+void readDHT(int hvacNumber) {
+  // Reading temperature or humidity takes about 250 milliseconds!
+  // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
+  float humidity = dht.readHumidity();
+  // Read temperature as Celsius
+  float temperatureC = dht.readTemperature();
+
+  // Check if any reads failed and exit early (to try again).
+  if (isnan(humidity) || isnan(temperatureC) ) {
+    //Serial.println("Failed to read from DHT sensor!");
+    return;
+  }
+  sensorHumidity[hvacNumber] = (int)humidity;
+  // Read temperature as Celsius
+  sensorTemperature[hvacNumber] = (int)temperatureC;
+  
 }
 
