@@ -3,6 +3,12 @@
 #include <Ethernet.h>
 #include <IRdaikin.h>
 
+
+//feature define
+#define DAIKIN_AC
+//#define SENSOR_TEMPERATURE
+//#define SENSOR_HUMIDITY
+
 //Ethernet Declare
 byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
@@ -29,15 +35,15 @@ long endTime;
 int timerCounter;
 
 //
-#define NUMBER_OF_COMMAND 2
-//char *command_cmd[] = {"/ac?","/ac=","/tp?","/hm?"};
-//int command_len[] = {6,16,6,6};
-char *command_cmd[NUMBER_OF_COMMAND] = {"/ac?","/ac="};
-int command_len[] = {6,16};
-#define AC_READ 0
-#define AC_WRITE 1
-#define TEMPERATURE_READ 2
-#define HUMIDITY_READ 3
+#define NUMBER_OF_COMMAND 5
+char *command_cmd[NUMBER_OF_COMMAND] = {"/ft?","/ac?","/ac=","/tp?","/hm?"};
+int command_len[NUMBER_OF_COMMAND] = {4,6,16,6,6};
+#define FEATURE_READ 0
+#define AC_READ 1
+#define AC_WRITE 2
+#define TEMPERATURE_READ 3
+#define HUMIDITY_READ 4
+
 //Daikin declare
 int daikinCommandBuffer[1][6] = {{0,0,0,0,0,25}};
 int daikinCommandTemp[6] = {0,0,0,0,0,0};
@@ -55,6 +61,8 @@ void setup() {
   }
   
   Ethernet.begin(mac, ip);
+  Serial.println(Ethernet.localIP());
+  
   server.begin();  
   commandMethod = 0;
   commandAction = "";
@@ -164,6 +172,9 @@ void progressHTTP_Action(){
 
 void progressCommandAction(int commandNumberOfAction) {
   switch (commandNumberOfAction) {
+    case FEATURE_READ:
+      getFeature();
+      break;
     case AC_READ:
       getACStatus();
       break;
@@ -181,15 +192,57 @@ void progressCommandAction(int commandNumberOfAction) {
   }
 }
 
-void setACStatus() {
-   int idx = checkStartWithEqual();
+void getFeature() {
+   int idx = checkStartWithQuestionMark();
    if (idx == -1) {
-     sendHTTPJSONERROR();
+     sendHTTPJSONCMD_ERROR();
      return;
    }   
    int acNumber = getNumberOfAC(idx);
    if (acNumber == -1) {
-     sendHTTPJSONERROR();
+     sendHTTPJSONCMD_ERROR();
+     return;
+   }  
+    HTTP_JSON_Header();
+    client.print(F("{\"status\":\"ok\""));
+    
+    client.print(F(","));   
+    client.print(F("\"ac\":\""));
+#ifdef DAIKIN_AC    
+    client.print("1");
+#else
+    client.print("0");
+#endif
+    client.print(F(","));
+    client.print(F("\"humidity\":\""));
+#ifdef SENSOR_HUMIDITY    
+    client.print("1");
+#else
+    client.print("0");
+#endif
+    client.print(F("\""));
+    client.print(F(","));
+    client.print(F("\"temperature\":\""));
+#ifdef SENSOR_TEMPERATURE    
+    client.print("1");
+#else
+    client.print("0");
+#endif
+    client.print(F("\""));
+    client.println(F("}"));        
+    client.flush();
+    client.stop();   
+}
+
+void setACStatus() {
+   int idx = checkStartWithEqual();
+   if (idx == -1) {
+     sendHTTPJSONCMD_ERROR();
+     return;
+   }   
+   int acNumber = getNumberOfAC(idx);
+   if (acNumber == -1) {
+     sendHTTPJSONCMD_ERROR();
      return;
    }
    //Serial.println(acNumber);
@@ -305,12 +358,12 @@ int getNumberOfAC(int start) {
 void getACStatus() {
    int idx = checkStartWithQuestionMark();
    if (idx == -1) {
-     sendHTTPJSONERROR();
+     sendHTTPJSONCMD_ERROR();
      return;
    }   
    int acNumber = getNumberOfAC(idx);
    if (acNumber == -1) {
-     sendHTTPJSONERROR();
+     sendHTTPJSONCMD_ERROR();
      return;
    }  
     HTTP_JSON_Header();
@@ -330,7 +383,7 @@ void getACStatus() {
     client.print(F("\"speed\":\""));
     client.print(daikinCommandBuffer[acNumber][4]);
     client.print(F("\","));
-    client.print(F("\"temp\":\""));
+    client.print(F("\"temperature\":\""));
     client.print(daikinCommandBuffer[acNumber][5]);
     client.print(F("\""));
     client.println(F("}"));        
@@ -338,14 +391,18 @@ void getACStatus() {
     client.stop(); 
 }
 void getTemperature() {
+#ifndef SENSOR_TEMPERATURE
+  sendHTTPJSONCMD_ERROR();
+  return;
+#endif
    int idx = checkStartWithQuestionMark();
    if (idx == -1) {
-   sendHTTPJSONERROR();
+   sendHTTPJSONCMD_ERROR();
    return;
    }   
    int acNumber = getNumberOfAC(idx);
    if (acNumber == -1) {
-   sendHTTPJSONERROR();
+   sendHTTPJSONCMD_ERROR();
    return;
    }  
   HTTP_JSON_Header();
@@ -361,14 +418,18 @@ void getTemperature() {
   client.stop();          
 }
 void getHumidity() {
+#ifndef SENSOR_HUMIDITY
+  sendHTTPJSONCMD_ERROR();
+  return;
+#endif  
    int idx = checkStartWithQuestionMark();
    if (idx == -1) {
-   sendHTTPJSONERROR();
+   sendHTTPJSONCMD_ERROR();
    return;
    }   
    int acNumber = getNumberOfAC(idx);
    if (acNumber == -1) {
-   sendHTTPJSONERROR();
+   sendHTTPJSONCMD_ERROR();
    return;
    }   
   HTTP_JSON_Header();
