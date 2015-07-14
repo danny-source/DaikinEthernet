@@ -9,15 +9,18 @@
 #define SENSOR_TEMPERATURE
 #define SENSOR_HUMIDITY
 
+#define SENSOR_DHT
+#ifdef SENSOR_DHT
 #define DHTTYPE DHT11
 #define DHTPIN 2     // what pin we're connected to
 DHT dht(DHTPIN, DHTTYPE);
+#endif
 
 //Ethernet Declare
 byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
 };
-IPAddress ip(192, 168, 13, 59);
+IPAddress ip(192, 168, 9, 59);
 
 // Initialize the Ethernet server library
 // with the IP address and port you want to use
@@ -30,17 +33,16 @@ String requestStringBuffer;
 long requestPackageLength;
 bool isCommand;
 bool isSerialCommand;
-uint8_t commandMethod;//1:POST 2:GET
+int commandMethod;//1:POST 2:GET
 String commandAction;
 String commandHttpAction;
 boolean currentLineIsBlank = true;
-
 //Schdule Timer
 long startTime;
 long endTime;
 int timerCounter;
 
-//
+//Command declare
 #define NUMBER_OF_COMMAND 5
 char *command_cmd[NUMBER_OF_COMMAND] = {"/ft?","/ac?","/ac=","/tp?","/hm?"};
 int command_len[NUMBER_OF_COMMAND] = {4,6,16,6,6};
@@ -59,8 +61,8 @@ IRdaikin irdaikin;
 #define NUMBER_OF_TEMPERATURE 1
 #define NUMBER_OF_HUMIDITY 1
 
-int sensorTemperature[] = {0};
-int sensorHumidity[] = {99};
+float sensorTemperature[] = {0};
+float sensorHumidity[] = {99};
 
 void setup() {
   // Open serial communications and wait for port to open:
@@ -69,14 +71,18 @@ void setup() {
     ; // wait for serial port to connect. Needed for Leonardo only
   }
   
+  //ethernet shield init
   Ethernet.begin(mac, ip);
   Serial.println(Ethernet.localIP());
-  
   server.begin();  
   commandMethod = 0;
   commandAction = "";
+  //timer init
   startTime = 0;
+  //dht sensor init
+#ifdef SENSOR_DHT  
   dht.begin();
+#endif  
 }
 
 
@@ -466,7 +472,9 @@ void schdule1Second() {
 }
 void schdule2Second() {
   //Serial.println("schdule2Second");
+#ifdef SENSOR_DHT  
     readDHT(0);
+#endif    
 }
 // HTTP Response
 
@@ -522,9 +530,9 @@ void readDHT(int hvacNumber) {
     //Serial.println("Failed to read from DHT sensor!");
     return;
   }
-  sensorHumidity[hvacNumber] = (int)humidity;
+  sensorHumidity[hvacNumber] = humidity;
   // Read temperature as Celsius
-  sensorTemperature[hvacNumber] = (int)temperatureC;
+  sensorTemperature[hvacNumber] = temperatureC;
   
 }
 
