@@ -5,11 +5,11 @@ Daikin ARC remote control for arduino with ethershield and include DHT11 sensor.
 Daikin ARC 遠端控制使用Arduino配合ethershield完成網路控制Daikin
 
 ## Circuit
- ![](http://dylab.mediweb.35g.tw:30000/DY-Open-Source-Project/DaikinEthernet/raw/master/arduino_remote_daikin_ethernetshield_ciruit.png)
+ ![](https://raw.githubusercontent.com/danny-source/DaikinEthernet/master/arduino_remote_daikin_ethernetshield_ciruit.png)
 
 ## Picture
 
- ![](http://dylab.mediweb.35g.tw:30000/DY-Open-Source-Project/DaikinEthernet/raw/master/daikinethernet-picture.jpg)
+ ![](https://raw.githubusercontent.com/danny-source/DaikinEthernet/master/daikinethernet-picture.jpg)
 
 ## Prepare
 
@@ -34,7 +34,7 @@ modify the ip in your network enverment. make sure your network can be used.
 
 根據你的網路環境來修改你的IP，並且確認你的網路環境是可運作的。
 
- ![](http://dylab.mediweb.35g.tw:30000/DY-Open-Source-Project/DaikinEthernet/raw/master/daikinethernet-1.png)
+ ![](https://raw.githubusercontent.com/danny-source/DaikinEthernet/master/daikinethernet-1.png)
 
 if your network need to connect internet,you must fix `Network Mask`、`Gateway` setting
 
