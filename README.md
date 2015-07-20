@@ -113,7 +113,7 @@ value is two digital ascii number a group.ex: 1 is `01`.
 
 ### example 範例
 
-http://192.168.9.59/ft?
+http://192.168.9.59/ft?00
 
 check your arduino feature and response like:
 
