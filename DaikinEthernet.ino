@@ -1,3 +1,11 @@
+//
+//  DaikinEthernet.ino
+//  
+//
+//  Created by danny on 07/01/15.
+//  Copyright (c) 2015 danny. All rights reserved.
+//
+//  https://github.com/danny-source/
 
 #include <SPI.h>
 #include <Ethernet.h>
