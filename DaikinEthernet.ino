@@ -235,7 +235,6 @@ void getFeature() {
     client.print(F("\"version\":\""));
     client.print(F("1"));
     client.print(F("\""));
-    //
     client.print(F(","));   
     client.print(F("\"ac\":\""));
 #ifdef DAIKIN_AC    
@@ -243,6 +242,7 @@ void getFeature() {
 #else
     client.print(F("0"));
 #endif
+    client.print(F("\""));
     client.print(F(","));
     client.print(F("\"humidity\":\""));
 #ifdef SENSOR_HUMIDITY    
