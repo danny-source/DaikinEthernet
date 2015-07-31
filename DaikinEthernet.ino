@@ -28,7 +28,7 @@ DHT dht(DHTPIN, DHTTYPE);
 byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
 };
-IPAddress ip(192, 168, 9, 59);
+IPAddress ip(192, 168, 10, 59);
 
 // Initialize the Ethernet server library
 // with the IP address and port you want to use
@@ -51,14 +51,22 @@ long endTime;
 int timerCounter;
 
 //Command declare
-#define NUMBER_OF_COMMAND 5
-char *command_cmd[NUMBER_OF_COMMAND] = {"/ft?","/ac?","/ac=","/tp?","/hm?"};
-int command_len[NUMBER_OF_COMMAND] = {4,6,16,6,6};
+#define NUMBER_OF_COMMAND 6
+/*
+ * ft = feature
+ * ac = air condition
+ * tp = temperature
+ * hm = humidity
+ * sr = sensors (temperature and humidity)
+ */
+char *command_cmd[NUMBER_OF_COMMAND] = {"/ft?","/ac?","/ac=","/tp?","/hm?","/sr?"};
+int command_len[NUMBER_OF_COMMAND] = {6,6,16,6,6,6};
 #define FEATURE_READ 0
 #define AC_READ 1
 #define AC_WRITE 2
 #define TEMPERATURE_READ 3
 #define HUMIDITY_READ 4
+#define SENSOR_TEMPERATURE_HUMITITY_READ 5
 
 //Daikin declare
 int daikinCommandBuffer[1][6] = {{0,0,0,0,0,25}};
@@ -171,12 +179,12 @@ bool parseHTTP_Method_Action(){
 
 void progressHTTP_Action(){
           if (commandMethod>0) {
-            //Serial.print(commandAction);
-            //Serial.print(commandAction.length());
+            //Serial.println(commandAction);
+            //Serial.println(commandAction.length());
             //Serial.println();
             int commandCnt = 0;
             while (true) {
-              //Serial.print(command_cmd[commandCnt]);
+              //Serial.println(command_cmd[commandCnt]);
               if (commandAction.startsWith(command_cmd[commandCnt]) && (command_len[commandCnt] == commandAction.length())) {
                 progressCommandAction(commandCnt);
                 break;
@@ -197,6 +205,8 @@ void progressHTTP_Action(){
 }
 
 void progressCommandAction(int commandNumberOfAction) {
+  //Serial.println("progressCommandAction");
+  //Serial.println(commandNumberOfAction);
   switch (commandNumberOfAction) {
     case FEATURE_READ:
       getFeature();
@@ -212,6 +222,9 @@ void progressCommandAction(int commandNumberOfAction) {
       break;
     case HUMIDITY_READ:
       getHumidity();
+      break;
+    case SENSOR_TEMPERATURE_HUMITITY_READ:
+      getSensor();
       break;    
     default:
       sendHTTPJSONERROR();
@@ -420,6 +433,42 @@ void getACStatus() {
     client.flush();
     client.stop(); 
 }
+void getSensor() {
+#ifndef SENSOR_TEMPERATURE
+  sendHTTPJSONCMD_ERROR();
+  return;
+#endif
+#ifndef SENSOR_HUMIDITY
+  sendHTTPJSONCMD_ERROR();
+  return;
+#endif
+
+   int idx = checkStartWithQuestionMark();
+   if (idx == -1) {
+   sendHTTPJSONCMD_ERROR();
+   return;
+   }   
+   int acNumber = getNumberOfAC(idx);
+   if ((acNumber == -1) || (acNumber>=NUMBER_OF_TEMPERATURE)) {
+   sendHTTPJSONCMD_ERROR();
+   return;
+   }  
+  HTTP_JSON_Header();
+  client.print(F("{\"status\":\"ok\","));
+  client.print(F("\"number\":\""));
+  client.print(acNumber);
+  client.print(F("\","));          
+  client.print(F("\"temperature\":\""));
+  client.print(sensorTemperature[acNumber]);
+  client.print(F("\","));
+  client.print(F("\"humidity\":\""));
+  client.print(sensorHumidity[acNumber]);
+  client.print(F("\"")); 
+  client.println(F("}"));
+  client.flush();
+  client.stop();          
+}
+
 void getTemperature() {
 #ifndef SENSOR_TEMPERATURE
   sendHTTPJSONCMD_ERROR();
@@ -447,6 +496,7 @@ void getTemperature() {
   client.flush();
   client.stop();          
 }
+
 void getHumidity() {
 #ifndef SENSOR_HUMIDITY
   sendHTTPJSONCMD_ERROR();
